@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
@@ -15,10 +15,18 @@ def train():
     dataset = LoadDataset("path/to/dataset", transform=transform)
     labels = dataset.labels
 
-    train_dataset, test_dataset, train_labels, test_labels = train_test_split(dataset, labels, test_size=0.2, random_state=42)
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(0.2 * dataset_size))
 
-    train_loader = DataLoader(train_dataset, batch_size=10, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=10, shuffle=False)
+    np.random.shuffle(indices)
+    train_indices, test_indices = indices[split:], indices[:split]
+
+    train_sample = SubsetRandomSampler(train_indices)
+    test_sample = SubsetRandomSampler(test_indices)
+
+    train_loader = DataLoader(dataset, batch_size=10, shuffle=True, sampler=train_sample)
+    test_loader = DataLoader(dataset, batch_size=10, shuffle=False, sampler=test_sample)
 
     # UTO center has 3 classes
     num_classes = 3
