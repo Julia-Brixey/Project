@@ -9,12 +9,13 @@ class Block(nn.Module):
     def __init__(self, in_planes, planes, stride=1, downsample=None):
         super().__init__()
 
-        self.conv1 = nn.Sequential(nn.Conv3d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False),
-                                   nn.BatchNorm3d(planes), nn.ReLU(inplace=True))
+        self.conv1 = nn.Conv3d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm3d(planes)
 
-        self.conv2 = nn.Sequential(nn.Conv3d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False),
-                                   nn.BatchNorm3d(planes))
+        self.conv2 = nn.Conv3d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm3d(planes)
 
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
@@ -22,7 +23,53 @@ class Block(nn.Module):
         residual = x
 
         out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
         out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+class Bottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self, in_planes, planes, stride=1, downsample=None):
+        super().__init__()
+
+        self.conv1 = nn.Conv3d(in_planes, planes, kernel_size=1, stride=stride, bias=False)
+        self.bn1 = nn.BatchNorm3d(planes)
+
+        self.conv2 = nn.Conv3d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm3d(planes)
+
+        self.conv3 = nn.Conv3d(planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False)
+        self.bn3 = nn.BatchNorm3d(planes * self.expansion)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -39,7 +86,7 @@ class ResNet(nn.Module):
 
         self.in_planes = 64
 
-        self.conv1 = nn.Conv3d(3, self.in_planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv3d(1, self.in_planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm3d(self.in_planes)
         self.relu = nn.ReLU(inplace=True)
 

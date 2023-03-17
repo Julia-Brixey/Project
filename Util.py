@@ -1,17 +1,30 @@
+import os
+
 import numpy as np
 import torch
 import nibabel as nib
+from torch.utils.data import Dataset
 
 
-class NormalizeIntensity(object):
-    def __call__(self, image):
-        """
-        Normalizes the intensity values of a 3D NIfTI image to have zero mean and unit variance.
-        """
-        img = nib.load(image)
-        data = img.get_fdata()
-        mean = np.mean(data)
-        std = np.std(data)
-        data_norm = (data - mean) / std
-        img_norm = nib.Nifti1Image(data_norm, img.affine, img.header)
-        return torch.from_numpy(img_norm.get_fdata()).float()
+class LoadDataset(Dataset):
+    def __init__(self, directory):
+        self.root_dir = directory
+        self.samples = []
+        self.labels = []
+
+        for foldername in os.listdir(directory):
+            folderpath = os.path.join(directory, foldername)
+            for filename in os.listdir(folderpath):
+                filepath = os.path.join(folderpath, filename)
+                if filepath.endswith(".nii"):
+                    self.samples.append(filepath)
+                    self.labels.append(int(foldername))
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, index):
+        sample = nib.load(self.samples[index]).get_fdata(dtype=np.float32)
+        sample = torch.tensor(sample).unsqueeze(0)
+        label = torch.tensor(self.labels[index])
+        return sample, label
