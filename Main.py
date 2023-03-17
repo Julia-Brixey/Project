@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
@@ -8,13 +9,14 @@ from ResNet import ResNet, Block, Bottleneck
 
 
 def train():
-    transform = transforms.Compose([transforms.Resize((64, 64, 64)), transforms.ToTensor()])
+    # transform = transforms.Compose([transforms.Resize((64, 64, 64)), transforms.ToTensor()])
 
-    dataset = LoadDataset("path/to/dataset", transform=transform)
+    dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
 
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(0.2 * dataset_size))
+    print(dataset.images[0].format())
 
     np.random.shuffle(indices)
     train_indices, test_indices = indices[split:], indices[:split]
@@ -22,20 +24,18 @@ def train():
     train_sample = SubsetRandomSampler(train_indices)
     test_sample = SubsetRandomSampler(test_indices)
 
-    train_loader = DataLoader(dataset, batch_size=10, shuffle=True, sampler=train_sample)
+    train_loader = DataLoader(dataset, batch_size=10, sampler=train_sample)
     test_loader = DataLoader(dataset, batch_size=10, shuffle=False, sampler=test_sample)
 
     # UTO center has 3 classes
     num_classes = 3
     model = ResNet(layers=[2, 2, 2, 2], block=Block, num_classes=num_classes)
 
-    # Define the loss function
+    # Loss Function / Optimizer
     criterion = nn.CrossEntropyLoss()
-
-    # Define the optimizer
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-    # Train the model
+    # Train
     num_epochs = 10
     for epoch in range(num_epochs):
         running_loss = 0.0
