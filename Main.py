@@ -11,7 +11,6 @@ def train():
     transform = transforms.Compose([transforms.Resize((64, 64, 64)), transforms.ToTensor()])
 
     dataset = LoadDataset("path/to/dataset", transform=transform)
-    labels = dataset.labels
 
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
