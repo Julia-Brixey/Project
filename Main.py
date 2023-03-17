@@ -4,8 +4,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from torchvision import transforms
-from sklearn.model_selection import train_test_split
-from torchvision.datasets import ImageFolder
 from ResNet import ResNet, Block, Bottleneck
 
 
