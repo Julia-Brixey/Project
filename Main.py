@@ -11,7 +11,7 @@ from ResNet import ResNet, Block, Bottleneck
 def train():
     # transform = transforms.Compose([transforms.Resize((64, 64, 64)), transforms.ToTensor()])
 
-    dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
+    dataset = LoadDataset(r"/Users/juliabrixey/Desktop/Research/Honors Thesis/Project/data/OTU")
 
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
