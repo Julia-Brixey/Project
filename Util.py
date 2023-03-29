@@ -2,6 +2,7 @@ import os
 from torchvision import transforms
 import torch
 import nibabel as nib
+import numpy as np
 from torch.utils.data import Dataset
 
 
@@ -29,5 +30,5 @@ class LoadDataset(Dataset):
         image = nib.load(self.images[index])
         image = image.get_fdata()
         image = torch.Tensor(image).unsqueeze(0)
-        label = torch.Tensor(self.labels[index])
+        label = self.labels[index]
         return image, label

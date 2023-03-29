@@ -5,18 +5,21 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from torchvision import transforms
+from torchvision.datasets import ImageFolder
 from ResNet import ResNet, Block, Bottleneck
 
 
 def train():
-    # transform = transforms.Compose([transforms.Resize((64, 64, 64)), transforms.ToTensor()])
 
-    dataset = LoadDataset(r"/Users/juliabrixey/Desktop/Research/Honors Thesis/Project/data/OTU")
+    # Julia's Mac
+    # dataset = LoadDataset(r"/Users/juliabrixey/Desktop/Research/Honors Thesis/Project/data/OTU")
+
+    # Julia's PC
+    dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
 
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(0.2 * dataset_size))
-    print(dataset.images[0].format())
 
     np.random.shuffle(indices)
     train_indices, test_indices = indices[split:], indices[:split]
