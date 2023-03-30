@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
-from torchvision import transforms
-from torchvision.datasets import ImageFolder
 from ResNet import ResNet, Block, Bottleneck
 
 
@@ -16,6 +14,9 @@ def train():
 
     # Julia's PC
     dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
+
+    # Ubuntu Remote server
+    # dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
 
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
