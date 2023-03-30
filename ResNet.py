@@ -12,7 +12,7 @@ class Block(nn.Module):
         self.conv1 = nn.Conv3d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm3d(planes)
 
-        self.conv2 = nn.Conv3d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv2 = nn.Conv3d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm3d(planes)
 
         self.relu = nn.ReLU(inplace=True)
@@ -30,7 +30,7 @@ class Block(nn.Module):
         out = self.bn2(out)
 
         if self.downsample is not None:
-            residual = self.downsample(x)
+            residual = self.downsample(residual)
 
         out += residual
         out = self.relu(out)
@@ -72,7 +72,7 @@ class Bottleneck(nn.Module):
         out = self.bn3(out)
 
         if self.downsample is not None:
-            residual = self.downsample(x)
+            residual = self.downsample(residual)
 
         out += residual
         out = self.relu(out)
@@ -81,7 +81,7 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, layers, block=Block, num_classes=10):
+    def __init__(self, layers, block=Block, num_classes=3):
         super(ResNet, self).__init__()
 
         self.in_planes = 64
