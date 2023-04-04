@@ -15,10 +15,10 @@ def train():
     # dataset = LoadDataset(r"/Users/juliabrixey/Desktop/Research/Honors Thesis/Project/data/OTU")
 
     # Julia's PC
-    # dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
+    dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\OTU")
 
     # Ubuntu Remote server
-    dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/OTU")
+    # dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/OTU")
 
     # check if gpu is available and set device to cuda else cpu
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -78,7 +78,7 @@ def train():
 
     print('Accuracy of the network on the test images: %d %%' % (
             100 * correct / total))
-
+    torch.save(model.state_dict(), "home/jkbrixey/Project/Project/model.pth")
 
 if __name__ == '__main__':
     train()
