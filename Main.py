@@ -28,8 +28,8 @@ def train():
     train_sample = SubsetRandomSampler(train_indices)
     test_sample = SubsetRandomSampler(test_indices)
 
-    train_loader = DataLoader(dataset, batch_size=10, sampler=train_sample)
-    test_loader = DataLoader(dataset, batch_size=10, shuffle=False, sampler=test_sample)
+    train_loader = DataLoader(dataset, batch_size=5, sampler=train_sample)
+    test_loader = DataLoader(dataset, batch_size=5, shuffle=False, sampler=test_sample)
 
     # UTO center has 3 classes
     num_classes = 3
