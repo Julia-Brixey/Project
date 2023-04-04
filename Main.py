@@ -71,6 +71,8 @@ def train():
     with torch.no_grad():
         for data in test_loader:
             inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
             outputs = model(inputs)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)

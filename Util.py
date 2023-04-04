@@ -25,9 +25,9 @@ class LoadDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, index):
-        width_min, width_max = 35, 160
-        height_min, height_max = 70, 220
-        depth_min, depth_max = 30, 210
+        width_min, width_max = 40, 155
+        height_min, height_max = 85, 205
+        depth_min, depth_max = 35, 210
         image = nib.load(self.images[index])
         image = image.get_fdata()[width_min:width_max, height_min:height_max, depth_min:depth_max]
         image = torch.Tensor(image).unsqueeze(0)
