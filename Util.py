@@ -21,6 +21,8 @@ class LoadDataset(Dataset):
                     self.images.append(filepath)
                     self.labels.append(int(foldername))
         print("Data load complete!")
+        print(self.images)
+        print(self.labels)
 
     def __len__(self):
         return len(self.images)
