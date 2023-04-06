@@ -3,9 +3,13 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import pickle
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sn
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from ResNet import ResNet, Block, Bottleneck
+from sklearn.metrics import confusion_matrix
 
 
 def train():
@@ -40,7 +44,8 @@ def train():
         print("Epoch running ", epoch + 1)
         for i, data in enumerate(train_loader, 0):
             inputs, labels = data
-            inputs.to(device), labels.to(device)
+            inputs = inputs.to(device)
+            labels = labels.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -67,15 +72,23 @@ def train():
             predicted_list.append(predicted.item())
             labels_list.append(labels.item())
 
+    # Confusion Matrix
+    classes = ('Healthy Controls', 'Major Depressive Disorder', 'Schizophrenia')
+    cf_matrix = confusion_matrix(labels_list, predicted_list)
+    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index=[i for i in classes], columns=[i for i in classes])
+    plt.figure(figsize=(12, 7))
+    sn.heatmap(df_cm, annot=True)
+    plt.savefig('home/jkbrixey/Project/Project/Models/OTU/confusion_matrix.png')
+
     print('Accuracy of the network on the test images: %d %%' % (
             100 * correct / total))
-    torch.save(model.state_dict(), "home/jkbrixey/Project/Project/model.pth")
+    torch.save(model.state_dict(), "home/jkbrixey/Project/Project/Models/OTU/model.pth")
 
     # Loading epoch loss list
-    with open("home/jkbrixey/Project/Project/file.pkl", 'rb') as f:
+    with open("home/jkbrixey/Project/Project/Models/OTU/epoch_list.pkl", 'rb') as f:
         epoch_loss = pickle.load(f)
     # Saving epoch loss list as pickle file
-    with open("home/jkbrixey/Project/Project/file.pkl", 'wb') as f:
+    with open("home/jkbrixey/Project/Project/Models/OTU/epoch_list.pkl", 'wb') as f:
         pickle.dump(epoch_loss, f)
 
 
