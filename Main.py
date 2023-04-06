@@ -34,8 +34,8 @@ def train():
     train_sample = SubsetRandomSampler(train_indices)
     test_sample = SubsetRandomSampler(test_indices)
 
-    train_loader = DataLoader(dataset, batch_size=5, sampler=train_sample)
-    test_loader = DataLoader(dataset, batch_size=5, shuffle=False, sampler=test_sample)
+    train_loader = DataLoader(dataset, batch_size=2, sampler=train_sample)
+    test_loader = DataLoader(dataset, batch_size=2, shuffle=False, sampler=test_sample)
 
     # UTO center has 3 classes
     num_classes = 3
@@ -45,13 +45,12 @@ def train():
     # Loss Function / Optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    # optimizer = optimizer.to(device)
 
     # Train
-    num_epochs = 10
+    num_epochs = 100
     for epoch in range(num_epochs):
         running_loss = 0.0
-        print("Epoch running ", epoch)
+        print("Epoch running ", epoch + 1)
         for i, data in enumerate(train_loader, 0):
             inputs, labels = data
             inputs.to(device), labels.to(device)
