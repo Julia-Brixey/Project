@@ -2,6 +2,7 @@ import os
 import torch
 import nibabel as nib
 from torch.utils.data import Dataset
+from scipy.ndimage.interpolation import zoom
 
 
 class LoadDataset(Dataset):
@@ -20,6 +21,8 @@ class LoadDataset(Dataset):
                     self.images.append(filepath)
                     self.labels.append(int(foldername))
         print("Data load complete!")
+        print(self.images)
+        print(self.labels)
 
     def __len__(self):
         return len(self.images)
@@ -27,6 +30,8 @@ class LoadDataset(Dataset):
     def __getitem__(self, index):
         image = nib.load(self.images[index])
         image = image.get_fdata()
-        image = torch.Tensor(image).unsqueeze(0)
+        resize_data = (98 / image.shape[0], 128 / image.shape[1], 128 / image.shape[2])
+        new_image = zoom(image, resize_data, mode='nearest')
+        new_image = torch.Tensor(new_image).unsqueeze(0)
         label = self.labels[index]
-        return image, label
+        return new_image, label
