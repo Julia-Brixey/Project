@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from ResNet import ResNet, Block, Bottleneck
 from sklearn.metrics import confusion_matrix
-import torchvision.models as models
+
 
 def train():
 
@@ -34,7 +34,7 @@ def train():
 
     # Loss Function / Optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=1e-06, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
     # Train
     num_epochs = 100
