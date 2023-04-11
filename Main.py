@@ -10,15 +10,15 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 from Util import *
 from ResNet import ResNet, Block, Bottleneck
 from sklearn.metrics import confusion_matrix
-
+import torchvision.models as models
 
 def train():
 
     # OTU Dataset Labels: Healthy Controls (0), Major Depressive Disorder (1), Schizophrenia (2)
 
     # Ubuntu Remote server
-    train_dataset = LoadDataset(r"data/OTU/Train")
-    test_dataset = LoadDataset(r"data/OTU/Test")
+    train_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/HUH/train")
+    test_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/HUH/test")
 
     # check if gpu is available and set device to cuda else cpu
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -34,10 +34,10 @@ def train():
 
     # Loss Function / Optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=1e-06, momentum=0.9)
 
     # Train
-    num_epochs = 2
+    num_epochs = 100
     epoch_loss = []
     for epoch in range(num_epochs):
         running_loss = 0.0
@@ -52,14 +52,17 @@ def train():
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-        print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / (i + 1)))
-        epoch_loss.append(running_loss/(i + 1))
+        print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, (running_loss / (i + 1))))
+        epoch_loss.append(running_loss / (i + 1))
 
-    print(epoch_loss)
     correct = 0
     total = 0
-    predicted_list = []
+    classes = ('Healthy Controls', 'Major Depressive Disorder', 'Schizophrenia')
+    cf_matrix = np.zeros((num_classes, num_classes))
     labels_list = []
+    predicted_list = []
+    model.eval()
+
     with torch.no_grad():
         for data in test_loader:
             inputs, labels = data
@@ -69,28 +72,67 @@ def train():
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            predicted_list.append(predicted.item())
-            labels_list.append(labels.item())
+            labels_list.extend(labels.cpu())
+            predicted_list.extend(predicted.cpu())
 
-    # Confusion Matrix
-    classes = ('Healthy Controls', 'Major Depressive Disorder', 'Schizophrenia')
     cf_matrix = confusion_matrix(labels_list, predicted_list)
-    df_cm = pd.DataFrame(cf_matrix / np.sum(cf_matrix, axis=1)[:, None], index=[i for i in classes], columns=[i for i in classes])
-    plt.figure(figsize=(12, 7))
-    sn.heatmap(df_cm, annot=True)
-    plt.savefig('home/jkbrixey/Project/Project/Models/OTU/confusion_matrix.png')
+
+    np.savetxt("/home/jkbrixey/Project/Project/Models/UTO/2/confusion_matrix.csv", cf_matrix, delimiter=',', fmt='%d',
+               header=','.join(classes))
 
     print('Accuracy of the network on the test images: %d %%' % (
             100 * correct / total))
-    torch.save(model.state_dict(), "home/jkbrixey/Project/Project/Models/OTU/model.pth")
+    torch.save(model.state_dict(), "/home/jkbrixey/Project/Project/Models/UTO/2/model.pth")
 
-    # Loading epoch loss list
-    with open("home/jkbrixey/Project/Project/Models/OTU/epoch_list.pkl", 'rb') as f:
-        epoch_loss = pickle.load(f)
     # Saving epoch loss list as pickle file
-    with open("home/jkbrixey/Project/Project/Models/OTU/epoch_list.pkl", 'wb') as f:
+    with open("/home/jkbrixey/Project/Project/Models/UTO/2/epoch_list", 'wb') as f:
         pickle.dump(epoch_loss, f)
 
 
+def runSaved():
+
+    test_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/KTT/train")
+    test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
+
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    print("device available is", device)
+
+    num_classes = 3
+    my_model = torch.load(r"/home/jkbrixey/Project/Project/Models/KTT/2/model.pth")
+
+    model = ResNet(layers=[2, 2, 2, 2], block=Block, num_classes=num_classes)
+
+    model.load_state_dict(my_model)
+
+    model = model.to(device)
+
+    correct = 0
+    total = 0
+    labels_list = []
+    predicted_list = []
+    classes = ('Healthy Controls', 'Major Depressive Disorder', 'Schizophrenia')
+    model.eval()
+
+    with torch.no_grad():
+        for data in test_loader:
+            inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            labels_list.extend(labels.cpu())
+            predicted_list.extend(predicted.cpu())
+
+    cf_matrix = confusion_matrix(labels_list, predicted_list)
+
+    np.savetxt("/home/jkbrixey/Project/Project/Models/KTT/2/train_confusion_matrix.csv", cf_matrix, delimiter=',', fmt='%d', header=','.join(classes))
+
+
+    print('Accuracy of the network on the train images: %d %%' % (
+            100 * correct / total))
+
+
 if __name__ == '__main__':
-    train()
+    runSaved()
