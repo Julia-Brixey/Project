@@ -129,7 +129,6 @@ def runSaved():
 
     np.savetxt("/home/jkbrixey/Project/Project/Models/KTT/2/train_confusion_matrix.csv", cf_matrix, delimiter=',', fmt='%d', header=','.join(classes))
 
-
     print('Accuracy of the network on the train images: %d %%' % (
             100 * correct / total))
 

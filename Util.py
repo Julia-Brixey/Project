@@ -1,6 +1,9 @@
 import os
 import torch
 import nibabel as nib
+import pandas as pd
+import numpy as np
+import math
 from torch.utils.data import Dataset
 from scipy.ndimage.interpolation import zoom
 
@@ -21,8 +24,6 @@ class LoadDataset(Dataset):
                     self.images.append(filepath)
                     self.labels.append(int(foldername))
         print("Data load complete!")
-        print(self.images)
-        print(self.labels)
 
     def __len__(self):
         return len(self.images)
