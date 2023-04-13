@@ -64,9 +64,21 @@ def fedavg():
     name_of_optimizers = list(optimizer_dict.keys())
     name_of_criterions = list(criterion_dict.keys())
 
+    model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples, name_of_models)
+
     start_train_end_node_process_print_some(number_of_samples, print_amount, model_dict, name_of_models, criterion_dict,
                                             name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch, x_train_dict,
                                             name_of_x_train_sets, y_train_dict, name_of_y_train_sets)
+
+    for i in range(10):
+        model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples, name_of_models)
+        start_train_end_node_process_without_print(number_of_samples, model_dict, name_of_models, criterion_dict,
+                                            name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch, x_train_dict,
+                                            name_of_x_train_sets, y_train_dict, name_of_y_train_sets)
+        main_model = set_averaged_weights_as_main_model_weights_and_update_main_model(main_model, model_dict,
+                                                                                      number_of_samples, name_of_models)
+        test_loss, test_accuracy = validation(main_model, test_dl, main_criterion)
+        print("Iteration", str(i + 1), ": main_model accuracy on all test data: {:7.4f}".format(test_accuracy))
 
 
 def split_and_shuffle_labels(y_data, seed, amount):
@@ -140,16 +152,50 @@ def create_model_optimizer_criterion_dict(number_of_samples, num_classes, learni
     return model_dict, optimizer_dict, criterion_dict
 
 
+def send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples, name_of_models):
+    with torch.no_grad():
+        for i in range(number_of_samples):
+            model_dict[name_of_models[i]].fc.weight.data = main_model.fc.weight.data.clone()
+
+            model_dict[name_of_models[i]].fc.bias.data = main_model.fc.bias.data.clone()
+
+    return model_dict
+
+
+def set_averaged_weights_as_main_model_weights_and_update_main_model(main_model, model_dict, number_of_samples, name_of_models):
+    fc1_mean_weight, fc1_mean_bias = get_averaged_weights(model_dict, number_of_samples=number_of_samples, name_of_models=name_of_models)
+    with torch.no_grad():
+        main_model.fc.weight.data = fc1_mean_weight.data.clone()
+
+        main_model.fc.bias.data = fc1_mean_bias.data.clone()
+    return main_model
+
+
+def get_averaged_weights(model_dict, number_of_samples, name_of_models):
+    fc1_mean_weight = torch.zeros(size=model_dict[name_of_models[0]].fc.weight.shape)
+    fc1_mean_bias = torch.zeros(size=model_dict[name_of_models[0]].fc.bias.shape)
+
+    with torch.no_grad():
+        for i in range(number_of_samples):
+            fc1_mean_weight += model_dict[name_of_models[i]].fc.weight.data.clone()
+            fc1_mean_bias += model_dict[name_of_models[i]].fc.bias.data.clone()
+
+        fc1_mean_weight = fc1_mean_weight / number_of_samples
+        fc1_mean_bias = fc1_mean_bias / number_of_samples
+
+    return fc1_mean_weight, fc1_mean_bias
+
+
 def start_train_end_node_process_print_some(number_of_samples, print_amount, model_dict, name_of_models, criterion_dict,
                                             name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch, x_train_dict,
                                             name_of_x_train_sets, y_train_dict, name_of_y_train_sets):
     for i in range(number_of_samples):
 
         train_ds = TensorDataset(x_train_dict[name_of_x_train_sets[i]], y_train_dict[name_of_y_train_sets[i]])
-        train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+        train_dl = DataLoader(train_ds, batch_size=2, shuffle=True)
 
-        test_ds = TensorDataset(x_test_dict[name_of_x_test_sets[i]], y_test_dict[name_of_y_test_sets[i]])
-        test_dl = DataLoader(test_ds, batch_size=batch_size * 2)
+        # test_ds = TensorDataset(x_test_dict[name_of_x_test_sets[i]], y_test_dict[name_of_y_test_sets[i]])
+        # test_dl = DataLoader(test_ds, batch_size=2)
 
         model = model_dict[name_of_models[i]]
         criterion = criterion_dict[name_of_criterions[i]]
@@ -161,11 +207,30 @@ def start_train_end_node_process_print_some(number_of_samples, print_amount, mod
         for epoch in range(numEpoch):
 
             train_loss, train_accuracy = train(model, train_dl, criterion, optimizer)
-            test_loss, test_accuracy = validation(model, test_dl, criterion)
+            # test_loss, test_accuracy = validation(model, test_dl, criterion)
 
-            if i < print_amount:
-                print("epoch: {:3.0f}".format(epoch + 1) + " | train accuracy: {:7.5f}".format(
-                    train_accuracy) + " | test accuracy: {:7.5f}".format(test_accuracy))
+            # if i < print_amount:
+                # print("epoch: {:3.0f}".format(epoch + 1) + " | train accuracy: {:7.5f}".format(
+                    # train_accuracy) + " | test accuracy: {:7.5f}".format(test_accuracy))
+
+
+def start_train_end_node_process_without_print(number_of_samples, model_dict, name_of_models, criterion_dict,
+                                            name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch, x_train_dict,
+                                            name_of_x_train_sets, y_train_dict, name_of_y_train_sets):
+    for i in range(number_of_samples):
+
+        train_ds = TensorDataset(x_train_dict[name_of_x_train_sets[i]], y_train_dict[name_of_y_train_sets[i]])
+        train_dl = DataLoader(train_ds, batch_size=2, shuffle=True)
+
+        # test_ds = TensorDataset(x_test_dict[name_of_x_test_sets[i]], y_test_dict[name_of_y_test_sets[i]])
+        # test_dl = DataLoader(test_ds, batch_size=batch_size * 2)
+
+        model = model_dict[name_of_models[i]]
+        criterion = criterion_dict[name_of_criterions[i]]
+        optimizer = optimizer_dict[name_of_optimizers[i]]
+
+        for epoch in range(numEpoch):
+            train_loss, train_accuracy = train(model, train_dl, criterion, optimizer)
 
 
 def train(model, train_loader, criterion, optimizer):
