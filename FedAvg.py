@@ -13,8 +13,8 @@ from sklearn.metrics import confusion_matrix
 
 
 def fedavg():
-    train_dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\KUT\train")
-    test_dataset = LoadDataset(r"C:\Users\jkbrixey\Desktop\Honors Thesis\Project\data\KUT\test")
+    train_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Train")
+    test_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Train")
 
     # check if gpu is available and set device to cuda else cpu
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
@@ -43,13 +43,12 @@ def fedavg():
 
     number_of_samples = 6
     learning_rate = 0.001
-    numEpoch = 10
+    numEpoch = 4
     momentum = 0.9
     num_classes = 3
 
-    train_amount = 12
-    test_amount = 4
-    print_amount = 6
+    train_amount = 105
+    test_amount = 12
 
     label_dict_train = split_and_shuffle_labels(y_data=y_train, seed=1, amount=train_amount)
     sample_dict_train = get_iid_subsamples_indices(label_dict=label_dict_train, number_of_samples=number_of_samples,
@@ -83,10 +82,13 @@ def fedavg():
     model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples,
                                                                 name_of_models)
 
-    for i in range(10):
+    test_loss, test_accuracy = validation(main_model, test_loader, main_criterion, device)
+    print("Pre-trained main_model accuracy on all test data: {:7.4f}".format(test_accuracy))
+
+    for i in range(3):
         model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples,
                                                                     name_of_models)
-        start_train_end_node_process_without_print(number_of_samples, model_dict, name_of_models, criterion_dict,
+        start_train_end_node_process_and_print(number_of_samples, model_dict, name_of_models, criterion_dict,
                                                    name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
                                                    x_train_dict, name_of_x_train_sets, y_train_dict,
                                                    name_of_y_train_sets, x_test_dict, name_of_x_test_sets, y_test_dict,
@@ -204,7 +206,7 @@ def get_averaged_weights(model_dict, number_of_samples, name_of_models):
     return fc1_mean_weight, fc1_mean_bias
 
 
-def start_train_end_node_process_without_print(number_of_samples, model_dict, name_of_models, criterion_dict,
+def start_train_end_node_process_and_print(number_of_samples, model_dict, name_of_models, criterion_dict,
                                                name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
                                                x_train_dict, name_of_x_train_sets, y_train_dict,
                                                name_of_y_train_sets, x_test_dict, name_of_x_test_sets, y_test_dict,
@@ -229,9 +231,13 @@ def start_train_end_node_process_without_print(number_of_samples, model_dict, na
         criterion = criterion_dict[name_of_criterions[i]]
         optimizer = optimizer_dict[name_of_optimizers[i]]
 
+        print("Model", i)
+
         for epoch in range(numEpoch):
             train_loss, train_accuracy = train(model, train_dl, criterion, optimizer, device)
             test_loss, test_accuracy = validation(model, test_dl, criterion, device)
+            print("epoch: {:3.0f}".format(epoch + 1) + " | train accuracy: {:7.5f}".format(
+                train_accuracy) + " | test accuracy: {:7.5f}".format(test_accuracy))
 
 
 def train(model, train_loader, criterion, optimizer, device):
