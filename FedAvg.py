@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import pickle
 import pandas as pd
+import math
 import matplotlib.pyplot as plt
 import seaborn as sn
 from torch.utils.data import DataLoader, SubsetRandomSampler, TensorDataset
@@ -13,21 +14,21 @@ from sklearn.metrics import confusion_matrix
 
 
 def fedavg():
-    train_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Train")
-    test_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Train")
+    train_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Train/train")
+    # test_dataset = LoadDataset(r"/home/jkbrixey/Project/Project/data/Combined_Test")
 
     # check if gpu is available and set device to cuda else cpu
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     print("device available is", device)
 
     train_loader = DataLoader(train_dataset, batch_size=2, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
+    # test_loader = DataLoader(test_dataset, batch_size=2, shuffle=False)
 
     x_train = []
     y_train = []
 
-    x_test = []
-    y_test = []
+    # x_test = []
+    # y_test = []
 
     for batch in train_loader:
         data, labels = batch
@@ -35,20 +36,20 @@ def fedavg():
         x_train.extend(data)
         y_train.extend(labels)
 
-    for batch in test_loader:
-        data, labels = batch
-
-        x_test.extend(data)
-        y_test.extend(labels)
+    # for batch in test_loader:
+    #     data, labels = batch
+    #
+    #     x_test.extend(data)
+    #     y_test.extend(labels)
 
     number_of_samples = 6
     learning_rate = 0.001
-    numEpoch = 4
+    numEpoch = 10
     momentum = 0.9
     num_classes = 3
 
-    train_amount = 105
-    test_amount = 12
+    train_amount = 12
+    test_amount = 30
 
     label_dict_train = split_and_shuffle_labels(y_data=y_train, seed=1, amount=train_amount)
     sample_dict_train = get_iid_subsamples_indices(label_dict=label_dict_train, number_of_samples=number_of_samples,
@@ -56,11 +57,11 @@ def fedavg():
     x_train_dict, y_train_dict = create_iid_subsamples(sample_dict=sample_dict_train, x_data=x_train, y_data=y_train,
                                                        x_name="x_train", y_name="y_train")
 
-    label_dict_test = split_and_shuffle_labels(y_data=y_test, seed=1, amount=test_amount)
-    sample_dict_test = get_iid_subsamples_indices(label_dict=label_dict_test, number_of_samples=number_of_samples,
-                                                  amount=test_amount)
-    x_test_dict, y_test_dict = create_iid_subsamples(sample_dict=sample_dict_test, x_data=x_test, y_data=y_test,
-                                                     x_name="x_test", y_name="y_test")
+    # label_dict_test = split_and_shuffle_labels(y_data=y_test, seed=1, amount=test_amount)
+    # sample_dict_test = get_iid_subsamples_indices(label_dict=label_dict_test, number_of_samples=number_of_samples,
+    #                                               amount=test_amount)
+    # x_test_dict, y_test_dict = create_iid_subsamples(sample_dict=sample_dict_test, x_data=x_test, y_data=y_test,
+    #                                                  x_name="x_test", y_name="y_test")
 
     main_model = ResNet(layers=[2, 2, 2, 2], block=Block, num_classes=num_classes)
     main_model.to(device)
@@ -68,12 +69,12 @@ def fedavg():
     main_criterion = nn.CrossEntropyLoss()
 
     model_dict, optimizer_dict, criterion_dict = create_model_optimizer_criterion_dict(number_of_samples, num_classes,
-                                                                                       learning_rate, momentum)
+                                                                                       learning_rate, momentum, device)
 
     name_of_x_train_sets = list(x_train_dict.keys())
     name_of_y_train_sets = list(y_train_dict.keys())
-    name_of_x_test_sets = list(x_test_dict.keys())
-    name_of_y_test_sets = list(y_test_dict.keys())
+    # name_of_x_test_sets = list(x_test_dict.keys())
+    # name_of_y_test_sets = list(y_test_dict.keys())
 
     name_of_models = list(model_dict.keys())
     name_of_optimizers = list(optimizer_dict.keys())
@@ -82,22 +83,34 @@ def fedavg():
     model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples,
                                                                 name_of_models)
 
-    test_loss, test_accuracy = validation(main_model, test_loader, main_criterion, device)
-    print("Pre-trained main_model accuracy on all test data: {:7.4f}".format(test_accuracy))
+    train_data = []
+    for j in range(len(x_train_dict)):
+        x_name = name_of_x_train_sets[j]
+        y_name = name_of_y_train_sets[j]
+        for i in range(len(x_train_dict[x_name])):
+            train_data.append([x_train_dict[x_name][i], y_train_dict[y_name][i]])
+    train_dl = DataLoader(train_data, batch_size=2, shuffle=True)
 
-    for i in range(3):
+    test_loss, test_accuracy = validation_create_cf(main_model, train_dl, main_criterion, device, "untrained")
+    print("Untrained main_model accuracy on all iid-split training data: {:7.4f}".format(test_accuracy))
+
+    for i in range(10):
         model_dict = send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, number_of_samples,
                                                                     name_of_models)
         start_train_end_node_process_and_print(number_of_samples, model_dict, name_of_models, criterion_dict,
-                                                   name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
-                                                   x_train_dict, name_of_x_train_sets, y_train_dict,
-                                                   name_of_y_train_sets, x_test_dict, name_of_x_test_sets, y_test_dict,
-                                                   name_of_y_test_sets, device)
+                                               name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
+                                               x_train_dict, name_of_x_train_sets, y_train_dict,
+                                               name_of_y_train_sets,
+                                               # x_test_dict, name_of_x_test_sets, y_test_dict, name_of_y_test_sets,
+                                               device)
         main_model = set_averaged_weights_as_main_model_weights_and_update_main_model(main_model, model_dict,
-                                                                                      number_of_samples, name_of_models,
-                                                                                      device)
-        test_loss, test_accuracy = validation_create_cf(main_model, test_loader, main_criterion, device, i)
-        print("Iteration", str(i + 1), ": main_model accuracy on all test data: {:7.4f}".format(test_accuracy))
+                                                                                      number_of_samples,
+                                                                                      name_of_models, device)
+
+        test_loss, test_accuracy = validation_create_cf(main_model, train_dl, main_criterion, device, i)
+        print("Iteration", str(i + 1), ": main_model accuracy on all iid-split training data: {:7.4f}".format(test_accuracy))
+
+        torch.save(main_model.state_dict(), "/home/jkbrixey/Project/Project/Models/FedAvg/main_model.pth")
 
 
 def split_and_shuffle_labels(y_data, seed, amount):
@@ -150,7 +163,7 @@ def create_iid_subsamples(sample_dict, x_data, y_data, x_name, y_name):
     return x_data_dict, y_data_dict
 
 
-def create_model_optimizer_criterion_dict(number_of_samples, num_classes, learning_rate, momentum):
+def create_model_optimizer_criterion_dict(number_of_samples, num_classes, learning_rate, momentum, device):
     model_dict = dict()
     optimizer_dict = dict()
     criterion_dict = dict()
@@ -158,6 +171,7 @@ def create_model_optimizer_criterion_dict(number_of_samples, num_classes, learni
     for i in range(number_of_samples):
         model_name = "model" + str(i)
         model_info = ResNet(layers=[2, 2, 2, 2], block=Block, num_classes=num_classes)
+        model_info = model_info.to(device)
         model_dict.update({model_name: model_info})
 
         optimizer_name = "optimizer" + str(i)
@@ -198,7 +212,9 @@ def get_averaged_weights(model_dict, device, number_of_samples, name_of_models):
 
     with torch.no_grad():
         for i in range(number_of_samples):
+            fc1_mean_weight = fc1_mean_weight.to(device)
             fc1_mean_weight += model_dict[name_of_models[i]].fc.weight.data.clone().to(device)
+            fc1_mean_bias = fc1_mean_bias.to(device)
             fc1_mean_bias += model_dict[name_of_models[i]].fc.bias.data.clone().to(device)
 
         fc1_mean_weight = fc1_mean_weight / number_of_samples
@@ -208,10 +224,11 @@ def get_averaged_weights(model_dict, device, number_of_samples, name_of_models):
 
 
 def start_train_end_node_process_and_print(number_of_samples, model_dict, name_of_models, criterion_dict,
-                                               name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
-                                               x_train_dict, name_of_x_train_sets, y_train_dict,
-                                               name_of_y_train_sets, x_test_dict, name_of_x_test_sets, y_test_dict,
-                                               name_of_y_test_sets, device):
+                                           name_of_criterions, optimizer_dict, name_of_optimizers, numEpoch,
+                                           x_train_dict, name_of_x_train_sets, y_train_dict,
+                                           name_of_y_train_sets,
+                                           # x_test_dict, name_of_x_test_sets, y_test_dict, name_of_y_test_sets,
+                                           device):
     for i in range(number_of_samples):
 
         x_train_set = x_train_dict[name_of_x_train_sets[i]]
@@ -221,12 +238,12 @@ def start_train_end_node_process_and_print(number_of_samples, model_dict, name_o
             train_data.append([x_train_set[j], y_train_set[j]])
         train_dl = DataLoader(train_data, batch_size=2, shuffle=True)
 
-        x_test_set = x_test_dict[name_of_x_test_sets[i]]
-        y_test_set = y_test_dict[name_of_y_test_sets[i]]
-        test_data = []
-        for k in range(len(x_test_set)):
-            test_data.append([x_test_set[k], y_test_set[k]])
-        test_dl = DataLoader(test_data, batch_size=2)
+        # x_test_set = x_test_dict[name_of_x_test_sets[i]]
+        # y_test_set = y_test_dict[name_of_y_test_sets[i]]
+        # test_data = []
+        # for k in range(len(x_test_set)):
+        #     test_data.append([x_test_set[k], y_test_set[k]])
+        # test_dl = DataLoader(test_data, batch_size=2)
 
         model = model_dict[name_of_models[i]]
         criterion = criterion_dict[name_of_criterions[i]]
@@ -236,9 +253,10 @@ def start_train_end_node_process_and_print(number_of_samples, model_dict, name_o
 
         for epoch in range(numEpoch):
             train_loss, train_accuracy = train(model, train_dl, criterion, optimizer, device)
-            test_loss, test_accuracy = validation(model, test_dl, criterion, device)
+            # test_loss, test_accuracy = validation(model, test_dl, criterion, device)
             print("epoch: {:3.0f}".format(epoch + 1) + " | train accuracy: {:7.5f}".format(
-                train_accuracy) + " | test accuracy: {:7.5f}".format(test_accuracy))
+                train_accuracy)  # + " | test accuracy: {:7.5f}".format(test_accuracy)
+                  )
 
 
 def train(model, train_loader, criterion, optimizer, device):
@@ -298,14 +316,14 @@ def validation_create_cf(model, test_loader, criterion, device, i):
             output = model(data)
 
             test_loss += criterion(output, target).item()
-            prediction = output.argmax(dim=1, keepdim=True)
-            correct += prediction.eq(target.view_as(prediction)).sum().item()
+            _, prediction = torch.max(output.data, 1)
+            correct += (prediction == target).sum().item()
             labels_list.extend(target.cpu())
             predicted_list.extend(prediction.cpu())
 
     cf_matrix = confusion_matrix(labels_list, predicted_list)
 
-    path_name = "/home/jkbrixey/Project/Project/Models/FedAvg/main_model_confusion_matrix" + str(i) + ".csv"
+    path_name = "/home/jkbrixey/Project/Project/Models/FedAvg/main_model_confusion_matrix_" + str(i) + ".csv"
     np.savetxt(path_name, cf_matrix, delimiter=',', fmt='%d', header=','.join(classes))
     if test_loss != 0:
         test_loss /= len(test_loader)
