@@ -94,8 +94,9 @@ def fedavg():
                                                    name_of_y_train_sets, x_test_dict, name_of_x_test_sets, y_test_dict,
                                                    name_of_y_test_sets, device)
         main_model = set_averaged_weights_as_main_model_weights_and_update_main_model(main_model, model_dict,
-                                                                                      number_of_samples, name_of_models)
-        test_loss, test_accuracy = validation(main_model, test_loader, main_criterion, device)
+                                                                                      number_of_samples, name_of_models,
+                                                                                      device)
+        test_loss, test_accuracy = validation_create_cf(main_model, test_loader, main_criterion, device, i)
         print("Iteration", str(i + 1), ": main_model accuracy on all test data: {:7.4f}".format(test_accuracy))
 
 
@@ -181,8 +182,8 @@ def send_main_model_to_nodes_and_update_model_dict(main_model, model_dict, numbe
 
 
 def set_averaged_weights_as_main_model_weights_and_update_main_model(main_model, model_dict, number_of_samples,
-                                                                     name_of_models):
-    fc1_mean_weight, fc1_mean_bias = get_averaged_weights(model_dict, number_of_samples=number_of_samples,
+                                                                     name_of_models, device):
+    fc1_mean_weight, fc1_mean_bias = get_averaged_weights(model_dict, device, number_of_samples=number_of_samples,
                                                           name_of_models=name_of_models)
     with torch.no_grad():
         main_model.fc.weight.data = fc1_mean_weight.data.clone()
@@ -191,14 +192,14 @@ def set_averaged_weights_as_main_model_weights_and_update_main_model(main_model,
     return main_model
 
 
-def get_averaged_weights(model_dict, number_of_samples, name_of_models):
+def get_averaged_weights(model_dict, device, number_of_samples, name_of_models):
     fc1_mean_weight = torch.zeros(size=model_dict[name_of_models[0]].fc.weight.shape)
     fc1_mean_bias = torch.zeros(size=model_dict[name_of_models[0]].fc.bias.shape)
 
     with torch.no_grad():
         for i in range(number_of_samples):
-            fc1_mean_weight += model_dict[name_of_models[i]].fc.weight.data.clone()
-            fc1_mean_bias += model_dict[name_of_models[i]].fc.bias.data.clone()
+            fc1_mean_weight += model_dict[name_of_models[i]].fc.weight.data.clone().to(device)
+            fc1_mean_bias += model_dict[name_of_models[i]].fc.bias.data.clone().to(device)
 
         fc1_mean_weight = fc1_mean_weight / number_of_samples
         fc1_mean_bias = fc1_mean_bias / number_of_samples
@@ -275,6 +276,37 @@ def validation(model, test_loader, criterion, device):
             prediction = output.argmax(dim=1, keepdim=True)
             correct += prediction.eq(target.view_as(prediction)).sum().item()
 
+    if test_loss != 0:
+        test_loss /= len(test_loader)
+    if correct != 0:
+        correct /= len(test_loader.dataset)
+
+    return test_loss, correct
+
+
+def validation_create_cf(model, test_loader, criterion, device, i):
+    model.eval()
+    test_loss = 0.0
+    correct = 0
+    labels_list = []
+    predicted_list = []
+    classes = ('Healthy Controls', 'Major Depressive Disorder', 'Schizophrenia')
+    with torch.no_grad():
+        for data, target in test_loader:
+            data = data.to(device)
+            target = target.to(device)
+            output = model(data)
+
+            test_loss += criterion(output, target).item()
+            prediction = output.argmax(dim=1, keepdim=True)
+            correct += prediction.eq(target.view_as(prediction)).sum().item()
+            labels_list.extend(target.cpu())
+            predicted_list.extend(prediction.cpu())
+
+    cf_matrix = confusion_matrix(labels_list, predicted_list)
+
+    path_name = "/home/jkbrixey/Project/Project/Models/FedAvg/main_model_confusion_matrix" + str(i) + ".csv"
+    np.savetxt(path_name, cf_matrix, delimiter=',', fmt='%d', header=','.join(classes))
     if test_loss != 0:
         test_loss /= len(test_loader)
     if correct != 0:
